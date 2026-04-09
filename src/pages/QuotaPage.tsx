@@ -13,6 +13,7 @@ import {
   CLAUDE_CONFIG,
   CODEX_CONFIG,
   GEMINI_CLI_CONFIG,
+  GITHUB_COPILOT_CONFIG,
   KIMI_CONFIG,
   XAI_CONFIG,
 } from '@/components/quota';
@@ -34,7 +35,7 @@ export function QuotaPage() {
       await configFileApi.fetchConfigYaml();
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : t('notification.refresh_failed');
-      setError((prev) => prev || errorMessage);
+      setError((prev: string) => prev || errorMessage);
     }
   }, [t]);
 
@@ -86,6 +87,12 @@ export function QuotaPage() {
       />
       <QuotaSection
         config={CODEX_CONFIG}
+        files={files}
+        loading={loading}
+        disabled={disableControls}
+      />
+      <QuotaSection
+        config={GITHUB_COPILOT_CONFIG}
         files={files}
         loading={loading}
         disabled={disableControls}

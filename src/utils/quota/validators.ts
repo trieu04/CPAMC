@@ -35,6 +35,11 @@ export function isCodexFile(file: AuthFileItem): boolean {
   return resolveAuthProvider(file) === 'codex';
 }
 
+export function isGitHubCopilotFile(file: AuthFileItem): boolean {
+  const provider = resolveAuthProvider(file);
+  return provider === 'github-copilot' || provider === 'copilot';
+}
+
 export function isGeminiCliFile(file: AuthFileItem): boolean {
   return resolveAuthProvider(file) === 'gemini-cli';
 }

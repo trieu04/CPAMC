@@ -7,10 +7,11 @@ import type {
   CodexUsagePayload,
   GeminiCliCodeAssistPayload,
   GeminiCliQuotaPayload,
+  GitHubCopilotUsagePayload,
   KimiUsagePayload,
   XaiBillingPayload,
 } from '@/types';
-import { normalizeAuthIndex } from '@/utils/authIndex';
+import { normalizeAuthIndex } from '@/utils/usage';
 
 const GEMINI_CLI_MODEL_SUFFIX = '_vertex';
 export { normalizeAuthIndex };
@@ -177,6 +178,23 @@ export function parseCodexUsagePayload(payload: unknown): CodexUsagePayload | nu
   }
   if (typeof payload === 'object') {
     return payload as CodexUsagePayload;
+  }
+  return null;
+}
+
+export function parseGitHubCopilotUsagePayload(payload: unknown): GitHubCopilotUsagePayload | null {
+  if (payload === undefined || payload === null) return null;
+  if (typeof payload === 'string') {
+    const trimmed = payload.trim();
+    if (!trimmed) return null;
+    try {
+      return JSON.parse(trimmed) as GitHubCopilotUsagePayload;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof payload === 'object') {
+    return payload as GitHubCopilotUsagePayload;
   }
   return null;
 }

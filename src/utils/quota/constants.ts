@@ -34,6 +34,10 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
     light: { bg: '#eae7ff', text: '#3538d4' },
     dark: { bg: '#262395', text: '#b5b0ff' },
   },
+  'github-copilot': {
+    light: { bg: '#e5eef9', text: '#0550ae' },
+    dark: { bg: '#0d2340', text: '#79c0ff' },
+  },
   kimi: {
     light: { bg: '#dce8ff', text: '#0560cf' },
     dark: { bg: '#003880', text: '#70b5ff' },
@@ -198,6 +202,19 @@ export const CODEX_REQUEST_HEADERS = {
   Authorization: 'Bearer $TOKEN$',
   'Content-Type': 'application/json',
   'User-Agent': 'codex_cli_rs/0.76.0 (Debian 13.0.0; x86_64) WindowsTerminal',
+};
+
+export const GITHUB_COPILOT_USAGE_URL = 'https://api.github.com/copilot_internal/user';
+
+export const GITHUB_COPILOT_REQUEST_HEADERS = {
+  accept: 'application/json',
+  authorization: 'token $TOKEN$',
+  'content-type': 'application/json',
+  'editor-version': 'vscode/1.99.3',
+  'editor-plugin-version': 'copilot-chat/0.26.7',
+  'user-agent': 'GitHubCopilotChat/0.26.7',
+  'x-github-api-version': '2025-04-01',
+  'x-vscode-user-agent-library-version': 'electron-fetch',
 };
 
 // Kimi API configuration

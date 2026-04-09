@@ -15,6 +15,10 @@ import type {
   ClaudeQuotaState,
   ClaudeQuotaWindow,
   ClaudeUsagePayload,
+  GitHubCopilotQuotaDetail,
+  GitHubCopilotQuotaState,
+  GitHubCopilotQuotaWindow,
+  GitHubCopilotUsagePayload,
   CodexRateLimitInfo,
   CodexQuotaState,
   CodexUsageWindow,
@@ -43,6 +47,8 @@ import {
   CLAUDE_USAGE_WINDOW_KEYS,
   CODEX_USAGE_URL,
   CODEX_REQUEST_HEADERS,
+  GITHUB_COPILOT_USAGE_URL,
+  GITHUB_COPILOT_REQUEST_HEADERS,
   GEMINI_CLI_QUOTA_URL,
   GEMINI_CLI_CODE_ASSIST_URL,
   GEMINI_CLI_REQUEST_HEADERS,
@@ -60,6 +66,7 @@ import {
   parseCodexUsagePayload,
   parseGeminiCliQuotaPayload,
   parseGeminiCliCodeAssistPayload,
+  parseGitHubCopilotUsagePayload,
   parseKimiUsagePayload,
   parseXaiBillingPayload,
   resolveCodexChatgptAccountId,
@@ -77,6 +84,7 @@ import {
   isClaudeFile,
   isCodexFile,
   isDisabledAuthFile,
+  isGitHubCopilotFile,
   isGeminiCliFile,
   isKimiFile,
   isRuntimeOnlyAuthFile,
@@ -88,7 +96,7 @@ import styles from '@/pages/QuotaPage.module.scss';
 
 type QuotaUpdater<T> = T | ((prev: T) => T);
 
-type QuotaType = 'antigravity' | 'claude' | 'codex' | 'gemini-cli' | 'kimi' | 'xai';
+type QuotaType = 'antigravity' | 'claude' | 'codex' | 'github-copilot' | 'gemini-cli' | 'kimi' | 'xai';
 
 const DEFAULT_ANTIGRAVITY_PROJECT_ID = 'bamboo-precept-lgxtn';
 const QUOTA_PROGRESS_HIGH_THRESHOLD = 70;
@@ -108,12 +116,14 @@ export interface QuotaStore {
   antigravityQuota: Record<string, AntigravityQuotaState>;
   claudeQuota: Record<string, ClaudeQuotaState>;
   codexQuota: Record<string, CodexQuotaState>;
+  githubCopilotQuota: Record<string, GitHubCopilotQuotaState>;
   geminiCliQuota: Record<string, GeminiCliQuotaState>;
   kimiQuota: Record<string, KimiQuotaState>;
   xaiQuota: Record<string, XaiQuotaState>;
   setAntigravityQuota: (updater: QuotaUpdater<Record<string, AntigravityQuotaState>>) => void;
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
+  setGithubCopilotQuota: (updater: QuotaUpdater<Record<string, GitHubCopilotQuotaState>>) => void;
   setGeminiCliQuota: (updater: QuotaUpdater<Record<string, GeminiCliQuotaState>>) => void;
   setKimiQuota: (updater: QuotaUpdater<Record<string, KimiQuotaState>>) => void;
   setXaiQuota: (updater: QuotaUpdater<Record<string, XaiQuotaState>>) => void;
@@ -462,6 +472,120 @@ const fetchCodexQuota = async (
   return { planType: planTypeFromUsage ?? planTypeFromFile, windows };
 };
 
+const GITHUB_COPILOT_QUOTA_ENTRIES = [
+  { key: 'chat', labelKey: 'github_copilot_quota.chat' },
+  { key: 'completions', labelKey: 'github_copilot_quota.completions' },
+  { key: 'premium_interactions', labelKey: 'github_copilot_quota.premium_interactions' },
+] as const;
+
+const getGitHubCopilotUsedPercent = (detail: GitHubCopilotQuotaDetail): number | null => {
+  const unlimited = detail.unlimited === true;
+  if (unlimited) return 0;
+
+  const percentRemaining = normalizeNumberValue(detail.percent_remaining);
+  if (percentRemaining !== null) {
+    return Math.max(0, Math.min(100, 100 - percentRemaining));
+  }
+
+  const remaining = normalizeNumberValue(detail.quota_remaining ?? detail.remaining);
+  const entitlement = normalizeNumberValue(detail.entitlement);
+  if (remaining !== null && entitlement !== null && entitlement > 0) {
+    const percent = (remaining / entitlement) * 100;
+    return Math.max(0, Math.min(100, 100 - percent));
+  }
+
+  return null;
+};
+
+const getGitHubCopilotAmountLabel = (
+  detail: GitHubCopilotQuotaDetail,
+  t: TFunction
+): string | null => {
+  if (detail.unlimited === true) {
+    return t('github_copilot_quota.unlimited');
+  }
+
+  const remaining = normalizeNumberValue(detail.quota_remaining ?? detail.remaining);
+  const entitlement = normalizeNumberValue(detail.entitlement);
+
+  if (remaining !== null && entitlement !== null && entitlement > 0) {
+    return t('github_copilot_quota.remaining_total', {
+      remaining,
+      total: entitlement,
+    });
+  }
+
+  if (remaining !== null) {
+    return t('github_copilot_quota.remaining_only', { count: remaining });
+  }
+
+  return null;
+};
+
+const buildGitHubCopilotQuotaWindows = (
+  payload: GitHubCopilotUsagePayload,
+  t: TFunction
+): GitHubCopilotQuotaWindow[] => {
+  const snapshots = payload.quota_snapshots;
+  if (!snapshots || typeof snapshots !== 'object') return [];
+
+  const resetLabel = formatQuotaResetTime(payload.quota_reset_date);
+
+  return GITHUB_COPILOT_QUOTA_ENTRIES.flatMap(({ key, labelKey }) => {
+    const detail = snapshots[key as keyof typeof snapshots];
+    if (!detail || typeof detail !== 'object') return [];
+
+    return [
+      {
+        id: key,
+        label: t(labelKey),
+        labelKey,
+        usedPercent: getGitHubCopilotUsedPercent(detail),
+        resetLabel,
+        amountLabel: getGitHubCopilotAmountLabel(detail, t),
+      },
+    ];
+  });
+};
+
+const fetchGitHubCopilotQuota = async (
+  file: AuthFileItem,
+  t: TFunction
+): Promise<{
+  windows: GitHubCopilotQuotaWindow[];
+  planType: string | null;
+  accessTypeSku: string | null;
+}> => {
+  const rawAuthIndex = file['auth_index'] ?? file.authIndex;
+  const authIndex = normalizeAuthIndex(rawAuthIndex);
+  if (!authIndex) {
+    throw new Error(t('github_copilot_quota.missing_auth_index'));
+  }
+
+  const result = await apiCallApi.request({
+    authIndex,
+    method: 'GET',
+    url: GITHUB_COPILOT_USAGE_URL,
+    header: { ...GITHUB_COPILOT_REQUEST_HEADERS },
+  });
+
+  if (result.statusCode < 200 || result.statusCode >= 300) {
+    throw createStatusError(getApiCallErrorMessage(result), result.statusCode);
+  }
+
+  const payload = parseGitHubCopilotUsagePayload(result.body ?? result.bodyText);
+  if (!payload) {
+    throw new Error(t('github_copilot_quota.empty_windows'));
+  }
+
+  const windows = buildGitHubCopilotQuotaWindows(payload, t);
+  return {
+    windows,
+    planType: normalizePlanType(payload.copilot_plan),
+    accessTypeSku: normalizeStringValue(payload.access_type_sku),
+  };
+};
+
 const GEMINI_CLI_G1_CREDIT_TYPE = 'GOOGLE_ONE_AI';
 
 const GEMINI_CLI_TIER_LABELS: Record<string, string> = {
@@ -591,7 +715,7 @@ const scheduleGeminiCliSupplementaryRefresh = (
 
     geminiCliSupplementaryCache.set(fileName, { requestId, ...supplementary });
 
-    useQuotaStore.getState().setGeminiCliQuota((prev) => {
+    useQuotaStore.getState().setGeminiCliQuota((prev: Record<string, GeminiCliQuotaState>) => {
       const current = prev[fileName];
       if (!current || current.status !== 'success') {
         return prev;
@@ -818,6 +942,93 @@ const renderCodexItems = (
             'div',
             { className: styleMap.quotaMeta },
             h('span', { className: styleMap.quotaPercent }, percentLabel),
+            h('span', { className: styleMap.quotaReset }, window.resetLabel)
+          )
+        ),
+        h(QuotaProgressBar, {
+          percent: remaining,
+          highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
+          mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+        })
+      );
+    })
+  );
+
+  return h(Fragment, null, ...nodes);
+};
+
+const renderGitHubCopilotItems = (
+  quota: GitHubCopilotQuotaState,
+  t: TFunction,
+  helpers: QuotaRenderHelpers
+): ReactNode => {
+  const { styles: styleMap, QuotaProgressBar } = helpers;
+  const { createElement: h, Fragment } = React;
+  const windows = quota.windows ?? [];
+  const nodes: ReactNode[] = [];
+
+  if (quota.planType) {
+    nodes.push(
+      h(
+        'div',
+        { key: 'plan', className: styleMap.codexPlan },
+        h('span', { className: styleMap.codexPlanLabel }, t('github_copilot_quota.plan_label')),
+        h('span', { className: styleMap.codexPlanValue }, quota.planType)
+      )
+    );
+  }
+
+  if (quota.accessTypeSku) {
+    nodes.push(
+      h(
+        'div',
+        { key: 'sku', className: styleMap.codexPlan },
+        h(
+          'span',
+          { className: styleMap.codexPlanLabel },
+          t('github_copilot_quota.access_type_label')
+        ),
+        h('span', { className: styleMap.codexPlanValue }, quota.accessTypeSku)
+      )
+    );
+  }
+
+  if (windows.length === 0) {
+    nodes.push(
+      h(
+        'div',
+        { key: 'empty', className: styleMap.quotaMessage },
+        t('github_copilot_quota.empty_windows')
+      )
+    );
+    return h(Fragment, null, ...nodes);
+  }
+
+  nodes.push(
+    ...windows.map((window) => {
+      const used = window.usedPercent;
+      const clampedUsed = used === null ? null : Math.max(0, Math.min(100, used));
+      const remaining = clampedUsed === null ? null : Math.max(0, Math.min(100, 100 - clampedUsed));
+      const percentLabel = remaining === null ? '--' : `${Math.round(remaining)}%`;
+
+      return h(
+        'div',
+        { key: window.id, className: styleMap.quotaRow },
+        h(
+          'div',
+          { className: styleMap.quotaRowHeader },
+          h(
+            'span',
+            { className: styleMap.quotaModel },
+            window.labelKey ? t(window.labelKey) : window.label
+          ),
+          h(
+            'div',
+            { className: styleMap.quotaMeta },
+            h('span', { className: styleMap.quotaPercent }, percentLabel),
+            window.amountLabel
+              ? h('span', { className: styleMap.quotaAmount }, window.amountLabel)
+              : null,
             h('span', { className: styleMap.quotaReset }, window.resetLabel)
           )
         ),
@@ -1225,6 +1436,42 @@ export const CODEX_CONFIG: QuotaConfig<
   controlClassName: styles.codexControl,
   gridClassName: styles.codexGrid,
   renderQuotaItems: renderCodexItems,
+};
+
+export const GITHUB_COPILOT_CONFIG: QuotaConfig<
+  GitHubCopilotQuotaState,
+  { windows: GitHubCopilotQuotaWindow[]; planType: string | null; accessTypeSku: string | null }
+> = {
+  type: 'github-copilot',
+  i18nPrefix: 'github_copilot_quota',
+  cardIdleMessageKey: 'quota_management.card_idle_hint',
+  filterFn: (file) => isGitHubCopilotFile(file) && !isDisabledAuthFile(file),
+  fetchQuota: fetchGitHubCopilotQuota,
+  storeSelector: (state) => state.githubCopilotQuota,
+  storeSetter: 'setGithubCopilotQuota',
+  buildLoadingState: () => ({
+    status: 'loading',
+    windows: [],
+    planType: null,
+    accessTypeSku: null,
+  }),
+  buildSuccessState: (data) => ({
+    status: 'success',
+    windows: data.windows,
+    planType: data.planType,
+    accessTypeSku: data.accessTypeSku,
+  }),
+  buildErrorState: (message, status) => ({
+    status: 'error',
+    windows: [],
+    error: message,
+    errorStatus: status,
+  }),
+  cardClassName: styles.githubCopilotCard,
+  controlsClassName: styles.githubCopilotControls,
+  controlClassName: styles.githubCopilotControl,
+  gridClassName: styles.githubCopilotGrid,
+  renderQuotaItems: renderGitHubCopilotItems,
 };
 
 export const GEMINI_CLI_CONFIG: QuotaConfig<

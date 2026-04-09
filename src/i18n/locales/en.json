@@ -287,6 +287,7 @@
     "filter_aistudio": "AIStudio",
     "filter_claude": "Claude",
     "filter_codex": "Codex",
+    "filter_github-copilot": "GitHub Copilot",
     "filter_antigravity": "Antigravity",
     "filter_xai": "xAI",
     "filter_iflow": "iFlow",
@@ -436,6 +437,26 @@
     "plan_free": "Free",
     "plan_pro": "Pro 20x",
     "plan_prolite": "Pro 5x"
+  },
+  "github_copilot_quota": {
+    "title": "GitHub Copilot Quota",
+    "empty_title": "No GitHub Copilot Auth Files",
+    "empty_desc": "Upload a GitHub Copilot credential to view quota.",
+    "idle": "Click here to refresh quota",
+    "loading": "Loading quota...",
+    "load_failed": "Failed to load quota: {{message}}",
+    "missing_auth_index": "Auth file missing auth_index",
+    "empty_windows": "No quota data available",
+    "refresh_button": "Refresh Quota",
+    "fetch_all": "Fetch All",
+    "chat": "Chat",
+    "completions": "Completions",
+    "premium_interactions": "Premium interactions",
+    "plan_label": "Plan",
+    "access_type_label": "Access type",
+    "remaining_total": "{{remaining}} / {{total}} remaining",
+    "remaining_only": "Remaining {{count}}",
+    "unlimited": "Unlimited"
   },
   "gemini_cli_quota": {
     "title": "Gemini CLI Quota",
@@ -1068,7 +1089,7 @@
   },
   "quota_management": {
     "title": "Quota Management",
-    "description": "Monitor OAuth quota status for Antigravity, Codex, and Gemini CLI credentials.",
+    "description": "Monitor quota status for Claude, Antigravity, Codex, GitHub Copilot, Gemini CLI, and Kimi credentials.",
     "refresh_files": "Refresh auth files",
     "refresh_files_and_quota": "Refresh files & quota",
     "refresh_all_credentials": "Refresh all credentials",

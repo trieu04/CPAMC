@@ -287,6 +287,7 @@
     "filter_aistudio": "AIStudio",
     "filter_claude": "Claude",
     "filter_codex": "Codex",
+    "filter_github-copilot": "GitHub Copilot",
     "filter_antigravity": "Antigravity",
     "filter_xai": "xAI",
     "filter_iflow": "iFlow",
@@ -433,6 +434,26 @@
     "plan_free": "Free",
     "plan_pro": "Pro 20x",
     "plan_prolite": "Pro 5x"
+  },
+  "github_copilot_quota": {
+    "title": "Квота GitHub Copilot",
+    "empty_title": "Файлы авторизации GitHub Copilot отсутствуют",
+    "empty_desc": "Загрузите учётные данные GitHub Copilot, чтобы увидеть оставшуюся квоту.",
+    "idle": "Не загружено. Нажмите \"Обновить квоту\".",
+    "loading": "Загрузка квоты...",
+    "load_failed": "Не удалось загрузить квоту: {{message}}",
+    "missing_auth_index": "В файле авторизации отсутствует auth_index",
+    "empty_windows": "Данные по квоте отсутствуют",
+    "refresh_button": "Обновить квоту",
+    "fetch_all": "Получить все",
+    "chat": "Chat",
+    "completions": "Completions",
+    "premium_interactions": "Premium interactions",
+    "plan_label": "План",
+    "access_type_label": "Тип доступа",
+    "remaining_total": "Осталось {{remaining}} / {{total}}",
+    "remaining_only": "Осталось {{count}}",
+    "unlimited": "Без ограничений"
   },
   "gemini_cli_quota": {
     "title": "Квота Gemini CLI",
@@ -1065,7 +1086,7 @@
   },
   "quota_management": {
     "title": "Управление квотами",
-    "description": "Следите за статусом квот OAuth для учётных данных Antigravity, Codex и Gemini CLI.",
+    "description": "Следите за статусом квот для учётных данных Claude, Antigravity, Codex, GitHub Copilot, Gemini CLI и Kimi.",
     "refresh_files": "Обновить файлы авторизации",
     "refresh_files_and_quota": "Обновить файлы и квоты",
     "refresh_all_credentials": "Обновить все учётные данные",

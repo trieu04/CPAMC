@@ -24,12 +24,20 @@ export type AuthFileModelItem = {
 };
 export type AuthFileIconAsset = string | { light: string; dark: string };
 
-export type QuotaProviderType = 'antigravity' | 'claude' | 'codex' | 'gemini-cli' | 'kimi' | 'xai';
+export type QuotaProviderType =
+  | 'antigravity'
+  | 'claude'
+  | 'codex'
+  | 'github-copilot'
+  | 'gemini-cli'
+  | 'kimi'
+  | 'xai';
 
 export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
   'antigravity',
   'claude',
   'codex',
+  'github-copilot',
   'gemini-cli',
   'kimi',
   'xai',
@@ -79,6 +87,10 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
   codex: {
     light: { bg: '#eae7ff', text: '#3538d4' },
     dark: { bg: '#262395', text: '#b5b0ff' },
+  },
+  'github-copilot': {
+    light: { bg: '#e5eef9', text: '#0550ae' },
+    dark: { bg: '#0d2340', text: '#79c0ff' },
   },
   // Antigravity logo: 多色（主色 #3789F9 蓝 + #53A89A 青绿），用青色区分
   antigravity: {

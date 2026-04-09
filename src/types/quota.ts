@@ -130,6 +130,36 @@ export interface CodexUsagePayload {
   additionalRateLimits?: CodexAdditionalRateLimit[] | null;
 }
 
+export interface GitHubCopilotQuotaDetail {
+  entitlement?: number | string;
+  overage_count?: number | string;
+  overage_permitted?: boolean;
+  percent_remaining?: number | string;
+  quota_id?: string;
+  quota_remaining?: number | string;
+  remaining?: number | string;
+  unlimited?: boolean;
+}
+
+export interface GitHubCopilotQuotaSnapshots {
+  chat?: GitHubCopilotQuotaDetail | null;
+  completions?: GitHubCopilotQuotaDetail | null;
+  premium_interactions?: GitHubCopilotQuotaDetail | null;
+}
+
+export interface GitHubCopilotUsagePayload {
+  access_type_sku?: string;
+  analytics_tracking_id?: string;
+  assigned_date?: string;
+  can_signup_for_limited?: boolean;
+  chat_enabled?: boolean;
+  copilot_plan?: string;
+  organization_login_list?: unknown[];
+  organization_list?: unknown[];
+  quota_reset_date?: string;
+  quota_snapshots?: GitHubCopilotQuotaSnapshots | null;
+}
+
 // Claude API payload types
 export interface ClaudeUsageWindow {
   utilization: number;
@@ -242,6 +272,24 @@ export interface CodexQuotaState {
   status: 'idle' | 'loading' | 'success' | 'error';
   windows: CodexQuotaWindow[];
   planType?: string | null;
+  error?: string;
+  errorStatus?: number;
+}
+
+export interface GitHubCopilotQuotaWindow {
+  id: string;
+  label: string;
+  labelKey?: string;
+  usedPercent: number | null;
+  resetLabel: string;
+  amountLabel?: string | null;
+}
+
+export interface GitHubCopilotQuotaState {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  windows: GitHubCopilotQuotaWindow[];
+  planType?: string | null;
+  accessTypeSku?: string | null;
   error?: string;
   errorStatus?: number;
 }

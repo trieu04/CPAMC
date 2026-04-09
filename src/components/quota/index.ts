@@ -10,6 +10,7 @@ export {
   CLAUDE_CONFIG,
   CODEX_CONFIG,
   GEMINI_CLI_CONFIG,
+  GITHUB_COPILOT_CONFIG,
   KIMI_CONFIG,
   XAI_CONFIG,
 } from './quotaConfigs';
