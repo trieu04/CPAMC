@@ -9,7 +9,10 @@ export type OAuthProvider =
   | 'anthropic'
   | 'antigravity'
   | 'gemini-cli'
-  | 'kimi';
+  | 'github'
+  | 'kimi'
+  | 'qwen'
+  | 'xai';
 
 // OAuth 流程状态
 export interface OAuthFlow {
@@ -42,3 +45,14 @@ export interface OAuthModelAliasEntry {
 }
 
 export type OAuthModelAlias = Record<string, OAuthModelAliasEntry[]>;
+
+// iFlow cookie 认证响应
+export interface IFlowCookieAuthResponse {
+  status: 'ok';
+  email?: string;
+  expired?: string;
+  saved_path?: string;
+  savedPath?: string;
+  type?: string;
+  error?: string;
+}

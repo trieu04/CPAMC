@@ -235,6 +235,29 @@
   }
 }
 
+.keyValueActionItem {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: $spacing-sm;
+  align-items: center;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+    gap: $spacing-sm;
+  }
+}
+
+.keyValueActionButton {
+  justify-self: start;
+}
+
+.keyValueValueGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-sm;
+  min-width: 0;
+}
+
 .keyValueKey {
   color: var(--text-secondary);
   font-size: 13px;
@@ -244,4 +267,37 @@
   color: var(--text-primary);
   word-break: break-all;
   overflow-wrap: anywhere;
+}
+
+.deviceFlowLink {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: $radius-md;
+  border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 40%, var(--bg-secondary));
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  transition:
+    border-color $transition-fast,
+    background-color $transition-fast,
+    color $transition-fast;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--primary-color) 45%, var(--border-color));
+    background: color-mix(in srgb, var(--bg-secondary) 82%, var(--primary-color) 8%);
+    color: var(--primary-color);
+  }
+
+  &:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--primary-color) 45%, transparent);
+    outline-offset: 2px;
+  }
 }

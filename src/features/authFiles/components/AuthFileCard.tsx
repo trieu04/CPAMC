@@ -109,7 +109,6 @@ export function AuthFileCard(props: AuthFileCardProps) {
         ? styles.claudeCard
         : quotaType === 'codex'
           ? styles.codexCard
-<<<<<<< HEAD
           : quotaType === 'github-copilot'
             ? styles.githubCopilotCard
             : quotaType === 'gemini-cli'
