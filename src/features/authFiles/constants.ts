@@ -30,7 +30,8 @@ export type QuotaProviderType =
   | 'codex'
   | 'github-copilot'
   | 'gemini-cli'
-  | 'kimi';
+  | 'kimi'
+  | 'xai';
 
 export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
   'antigravity',
@@ -39,6 +40,7 @@ export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
   'github-copilot',
   'gemini-cli',
   'kimi',
+  'xai',
 ]);
 
 export const MIN_CARD_PAGE_SIZE = 3;
@@ -258,7 +260,7 @@ export const formatModified = (item: AuthFileItem): string => {
   const date =
     Number.isFinite(asNumber) && !Number.isNaN(asNumber)
       ? new Date(asNumber < 1e12 ? asNumber * 1000 : asNumber)
-      : parseTimestamp(raw) ?? new Date(String(raw));
+      : (parseTimestamp(raw) ?? new Date(String(raw)));
   return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
 };
 

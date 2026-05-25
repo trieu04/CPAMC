@@ -8,6 +8,7 @@ import {
   GEMINI_CLI_CONFIG,
   GITHUB_COPILOT_CONFIG,
   KIMI_CONFIG,
+  XAI_CONFIG,
 } from '@/components/quota';
 import { useNotificationStore, useQuotaStore } from '@/stores';
 import type { AuthFileItem } from '@/types';
@@ -28,6 +29,7 @@ const getQuotaConfig = (type: QuotaProviderType) => {
   if (type === 'codex') return CODEX_CONFIG;
   if (type === 'github-copilot') return GITHUB_COPILOT_CONFIG;
   if (type === 'kimi') return KIMI_CONFIG;
+  if (type === 'xai') return XAI_CONFIG;
   return GEMINI_CLI_CONFIG;
 };
 
@@ -48,6 +50,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     if (quotaType === 'codex') return state.codexQuota[file.name] as QuotaState;
     if (quotaType === 'github-copilot') return state.githubCopilotQuota[file.name] as QuotaState;
     if (quotaType === 'kimi') return state.kimiQuota[file.name] as QuotaState;
+    if (quotaType === 'xai') return state.xaiQuota[file.name] as QuotaState;
     return state.geminiCliQuota[file.name] as QuotaState;
   });
 
@@ -60,6 +63,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
     if (quotaType === 'github-copilot')
       return state.setGithubCopilotQuota as unknown as (updater: unknown) => void;
     if (quotaType === 'kimi') return state.setKimiQuota as unknown as (updater: unknown) => void;
+    if (quotaType === 'xai') return state.setXaiQuota as unknown as (updater: unknown) => void;
     return state.setGeminiCliQuota as unknown as (updater: unknown) => void;
   });
 
