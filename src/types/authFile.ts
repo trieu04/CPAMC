@@ -15,6 +15,7 @@ export type AuthFileType =
   | 'codex'
   | 'github-copilot'
   | 'antigravity'
+  | 'xai'
   | 'iflow'
   | 'vertex'
   | 'empty'
