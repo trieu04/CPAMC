@@ -21,6 +21,7 @@ import {
   IconSidebarProviders,
   IconSidebarQuota,
   IconSidebarSystem,
+  IconSidebarUsage,
 } from '@/components/ui/icons';
 import { INLINE_LOGO_JPEG } from '@/assets/logoInline';
 import {
@@ -41,6 +42,7 @@ const sidebarIcons: Record<string, ReactNode> = {
   authFiles: <IconSidebarAuthFiles size={18} />,
   oauth: <IconSidebarOauth size={18} />,
   quota: <IconSidebarQuota size={18} />,
+  usage: <IconSidebarUsage size={18} />,
   config: <IconSidebarConfig size={18} />,
   logs: <IconSidebarLogs size={18} />,
   system: <IconSidebarSystem size={18} />,
@@ -160,51 +162,51 @@ const THEME_CARDS: Array<{
   labelKey: string;
   colors: { bg: string; card: string; border: string; text: string; textMuted: string };
 }> = [
-  {
-    key: 'auto',
-    labelKey: 'theme.auto',
-    colors: {
-      bg: 'linear-gradient(135deg, #ffffff 0 50%, #111111 50% 100%)',
-      card: 'linear-gradient(135deg, #ffffff 0 50%, #1a1a1a 50% 100%)',
-      border: '#bdbdbd',
-      text: '#2d2a26',
-      textMuted: 'linear-gradient(135deg, #c9c9c9 0 50%, #5a5a5a 50% 100%)',
+    {
+      key: 'auto',
+      labelKey: 'theme.auto',
+      colors: {
+        bg: 'linear-gradient(135deg, #ffffff 0 50%, #111111 50% 100%)',
+        card: 'linear-gradient(135deg, #ffffff 0 50%, #1a1a1a 50% 100%)',
+        border: '#bdbdbd',
+        text: '#2d2a26',
+        textMuted: 'linear-gradient(135deg, #c9c9c9 0 50%, #5a5a5a 50% 100%)',
+      },
     },
-  },
-  {
-    key: 'white',
-    labelKey: 'theme.white',
-    colors: {
-      bg: '#ffffff',
-      card: '#ffffff',
-      border: '#e5e5e5',
-      text: '#2d2a26',
-      textMuted: '#a29c95',
+    {
+      key: 'white',
+      labelKey: 'theme.white',
+      colors: {
+        bg: '#ffffff',
+        card: '#ffffff',
+        border: '#e5e5e5',
+        text: '#2d2a26',
+        textMuted: '#a29c95',
+      },
     },
-  },
-  {
-    key: 'light',
-    labelKey: 'theme.light',
-    colors: {
-      bg: '#faf9f5',
-      card: '#f0eee8',
-      border: '#e3e1db',
-      text: '#2d2a26',
-      textMuted: '#a29c95',
+    {
+      key: 'light',
+      labelKey: 'theme.light',
+      colors: {
+        bg: '#faf9f5',
+        card: '#f0eee8',
+        border: '#e3e1db',
+        text: '#2d2a26',
+        textMuted: '#a29c95',
+      },
     },
-  },
-  {
-    key: 'dark',
-    labelKey: 'theme.dark',
-    colors: {
-      bg: '#151412',
-      card: '#1d1b18',
-      border: '#3a3530',
-      text: '#f6f4f1',
-      textMuted: '#9c958d',
+    {
+      key: 'dark',
+      labelKey: 'theme.dark',
+      colors: {
+        bg: '#151412',
+        card: '#1d1b18',
+        border: '#3a3530',
+        text: '#f6f4f1',
+        textMuted: '#9c958d',
+      },
     },
-  },
-];
+  ];
 
 export function MainLayout() {
   const { t } = useTranslation();
@@ -429,6 +431,12 @@ export function MainLayout() {
           labelKey: 'nav.quota_management',
           metaKey: 'nav_meta.quota_management',
           icon: sidebarIcons.quota,
+        },
+        {
+          path: '/usage',
+          labelKey: 'nav.usage',
+          metaKey: 'nav_meta.usage',
+          icon: sidebarIcons.usage,
         },
         {
           path: '/logs',
