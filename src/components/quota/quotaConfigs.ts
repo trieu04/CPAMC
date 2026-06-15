@@ -41,6 +41,7 @@ import {
   CLAUDE_USAGE_URL,
   CLAUDE_REQUEST_HEADERS,
   CLAUDE_USAGE_WINDOW_KEYS,
+  CODEX_RATE_LIMIT_RESET_CREDITS_CONSUME_URL,
   CODEX_USAGE_URL,
   CODEX_REQUEST_HEADERS,
   GEMINI_CLI_QUOTA_URL,
@@ -64,6 +65,7 @@ import {
   parseXaiBillingPayload,
   resolveCodexChatgptAccountId,
   resolveCodexPlanType,
+  resolveCodexSubscriptionActiveUntil,
   resolveGeminiCliProjectId,
   formatCodexResetLabel,
   formatQuotaResetTime,
@@ -83,6 +85,7 @@ import {
   isXaiFile,
 } from '@/utils/quota';
 import { normalizeAuthIndex } from '@/utils/authIndex';
+import { formatDateTimeValue } from '@/utils/format';
 import type { QuotaRenderHelpers } from './QuotaCard';
 import styles from '@/pages/QuotaPage.module.scss';
 
@@ -126,6 +129,8 @@ export interface QuotaConfig<TState, TData> {
   cardIdleMessageKey?: string;
   filterFn: (file: AuthFileItem) => boolean;
   fetchQuota: (file: AuthFileItem, t: TFunction) => Promise<TData>;
+  resetQuota?: (file: AuthFileItem, t: TFunction) => Promise<TData>;
+  canResetQuota?: (quota: TState) => boolean;
   storeSelector: (state: QuotaStore) => Record<string, TState>;
   storeSetter: keyof QuotaStore;
   buildLoadingState: () => TState;
@@ -241,12 +246,18 @@ const fetchAntigravityQuota = async (
   throw createStatusError(lastError || t('common.unknown_error'), priorityStatus ?? lastStatus);
 };
 
-const buildCodexQuotaWindows = (payload: CodexUsagePayload, t: TFunction): CodexQuotaWindow[] => {
+const buildCodexQuotaWindows = (
+  payload: CodexUsagePayload,
+  t: TFunction
+): CodexQuotaWindow[] => {
   const FIVE_HOUR_SECONDS = 18000;
   const WEEK_SECONDS = 604800;
+  const MIN_MONTH_SECONDS = 28 * 24 * 60 * 60;
+  const MAX_MONTH_SECONDS = 31 * 24 * 60 * 60;
   const WINDOW_META = {
     codeFiveHour: { id: 'five-hour', labelKey: 'codex_quota.primary_window' },
     codeWeekly: { id: 'weekly', labelKey: 'codex_quota.secondary_window' },
+    codeMonthly: { id: 'monthly', labelKey: 'codex_quota.team_secondary_window' },
     codeReviewFiveHour: {
       id: 'code-review-five-hour',
       labelKey: 'codex_quota.code_review_primary_window',
@@ -254,6 +265,10 @@ const buildCodexQuotaWindows = (payload: CodexUsagePayload, t: TFunction): Codex
     codeReviewWeekly: {
       id: 'code-review-weekly',
       labelKey: 'codex_quota.code_review_secondary_window',
+    },
+    codeReviewMonthly: {
+      id: 'code-review-monthly',
+      labelKey: 'codex_quota.code_review_team_secondary_window',
     },
   } as const;
 
@@ -292,6 +307,20 @@ const buildCodexQuotaWindows = (payload: CodexUsagePayload, t: TFunction): Codex
     return normalizeNumberValue(window.limit_window_seconds ?? window.limitWindowSeconds);
   };
 
+  const isMonthlyWindow = (window?: CodexUsageWindow | null): boolean => {
+    const seconds = getWindowSeconds(window);
+    return seconds !== null && seconds >= MIN_MONTH_SECONDS && seconds <= MAX_MONTH_SECONDS;
+  };
+
+  const selectSecondaryWindowMeta = <
+    TWeekly extends { id: string; labelKey: string },
+    TMonthly extends { id: string; labelKey: string },
+  >(
+    window: CodexUsageWindow | null | undefined,
+    weeklyMeta: TWeekly,
+    monthlyMeta: TMonthly
+  ): TWeekly | TMonthly => (isMonthlyWindow(window) ? monthlyMeta : weeklyMeta);
+
   const rawLimitReached = rateLimit?.limit_reached ?? rateLimit?.limitReached;
   const rawAllowed = rateLimit?.allowed;
 
@@ -312,7 +341,7 @@ const buildCodexQuotaWindows = (payload: CodexUsagePayload, t: TFunction): Codex
       const seconds = getWindowSeconds(window);
       if (seconds === FIVE_HOUR_SECONDS && !fiveHourWindow) {
         fiveHourWindow = window;
-      } else if (seconds === WEEK_SECONDS && !weeklyWindow) {
+      } else if ((seconds === WEEK_SECONDS || isMonthlyWindow(window)) && !weeklyWindow) {
         weeklyWindow = window;
       }
     }
@@ -341,10 +370,15 @@ const buildCodexQuotaWindows = (payload: CodexUsagePayload, t: TFunction): Codex
     rawLimitReached,
     rawAllowed
   );
+  const codeSecondaryWindowMeta = selectSecondaryWindowMeta(
+    rateWindows.weeklyWindow,
+    WINDOW_META.codeWeekly,
+    WINDOW_META.codeMonthly
+  );
   addWindow(
-    WINDOW_META.codeWeekly.id,
-    t(WINDOW_META.codeWeekly.labelKey),
-    WINDOW_META.codeWeekly.labelKey,
+    codeSecondaryWindowMeta.id,
+    t(codeSecondaryWindowMeta.labelKey),
+    codeSecondaryWindowMeta.labelKey,
     undefined,
     rateWindows.weeklyWindow,
     rawLimitReached,
@@ -363,10 +397,15 @@ const buildCodexQuotaWindows = (payload: CodexUsagePayload, t: TFunction): Codex
     codeReviewLimitReached,
     codeReviewAllowed
   );
+  const codeReviewSecondaryWindowMeta = selectSecondaryWindowMeta(
+    codeReviewWindows.weeklyWindow,
+    WINDOW_META.codeReviewWeekly,
+    WINDOW_META.codeReviewMonthly
+  );
   addWindow(
-    WINDOW_META.codeReviewWeekly.id,
-    t(WINDOW_META.codeReviewWeekly.labelKey),
-    WINDOW_META.codeReviewWeekly.labelKey,
+    codeReviewSecondaryWindowMeta.id,
+    t(codeReviewSecondaryWindowMeta.labelKey),
+    codeReviewSecondaryWindowMeta.labelKey,
     undefined,
     codeReviewWindows.weeklyWindow,
     codeReviewLimitReached,
@@ -406,10 +445,15 @@ const buildCodexQuotaWindows = (payload: CodexUsagePayload, t: TFunction): Codex
         additionalLimitReached,
         additionalAllowed
       );
+      const additionalSecondaryMeta = selectSecondaryWindowMeta(
+        additionalSecondaryWindow,
+        { id: 'weekly', labelKey: 'codex_quota.additional_secondary_window' },
+        { id: 'monthly', labelKey: 'codex_quota.additional_team_secondary_window' }
+      );
       addWindow(
-        `${idPrefix}-weekly-${index}`,
-        t('codex_quota.additional_secondary_window', { name: limitName }),
-        'codex_quota.additional_secondary_window',
+        `${idPrefix}-${additionalSecondaryMeta.id}-${index}`,
+        t(additionalSecondaryMeta.labelKey, { name: limitName }),
+        additionalSecondaryMeta.labelKey,
         { name: limitName },
         additionalSecondaryWindow,
         additionalLimitReached,
@@ -424,7 +468,12 @@ const buildCodexQuotaWindows = (payload: CodexUsagePayload, t: TFunction): Codex
 const fetchCodexQuota = async (
   file: AuthFileItem,
   t: TFunction
-): Promise<{ planType: string | null; windows: CodexQuotaWindow[] }> => {
+): Promise<{
+  planType: string | null;
+  subscriptionActiveUntil: string | number | null;
+  rateLimitResetCreditsAvailableCount: number | null;
+  windows: CodexQuotaWindow[];
+}> => {
   const rawAuthIndex = file['auth_index'] ?? file.authIndex;
   const authIndex = normalizeAuthIndex(rawAuthIndex);
   if (!authIndex) {
@@ -432,6 +481,7 @@ const fetchCodexQuota = async (
   }
 
   const planTypeFromFile = resolveCodexPlanType(file);
+  const subscriptionActiveUntil = resolveCodexSubscriptionActiveUntil(file);
   const accountId = resolveCodexChatgptAccountId(file);
 
   const requestHeader: Record<string, string> = {
@@ -458,8 +508,76 @@ const fetchCodexQuota = async (
   }
 
   const planTypeFromUsage = normalizePlanType(payload.plan_type ?? payload.planType);
+  const resetCredits = payload.rate_limit_reset_credits ?? payload.rateLimitResetCredits ?? null;
+  const rateLimitResetCreditsAvailableCount = normalizeNumberValue(
+    resetCredits?.available_count ?? resetCredits?.availableCount
+  );
+  const planType = planTypeFromUsage ?? planTypeFromFile;
   const windows = buildCodexQuotaWindows(payload, t);
-  return { planType: planTypeFromUsage ?? planTypeFromFile, windows };
+  return {
+    planType,
+    subscriptionActiveUntil,
+    rateLimitResetCreditsAvailableCount,
+    windows,
+  };
+};
+
+const createCodexRedeemRequestId = (): string => {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const value = Math.floor(Math.random() * 16);
+    const segment = char === 'x' ? value : (value & 0x3) | 0x8;
+    return segment.toString(16);
+  });
+};
+
+const consumeCodexRateLimitResetCredit = async (
+  file: AuthFileItem,
+  t: TFunction
+): Promise<void> => {
+  const rawAuthIndex = file['auth_index'] ?? file.authIndex;
+  const authIndex = normalizeAuthIndex(rawAuthIndex);
+  if (!authIndex) {
+    throw new Error(t('codex_quota.missing_auth_index'));
+  }
+
+  const accountId = resolveCodexChatgptAccountId(file);
+  const requestHeader: Record<string, string> = {
+    ...CODEX_REQUEST_HEADERS,
+  };
+  if (accountId) {
+    requestHeader['Chatgpt-Account-Id'] = accountId;
+  }
+
+  const result = await apiCallApi.request({
+    authIndex,
+    method: 'POST',
+    url: CODEX_RATE_LIMIT_RESET_CREDITS_CONSUME_URL,
+    header: requestHeader,
+    data: JSON.stringify({
+      redeem_request_id: createCodexRedeemRequestId(),
+    }),
+  });
+
+  if (result.statusCode < 200 || result.statusCode >= 300) {
+    throw createStatusError(getApiCallErrorMessage(result), result.statusCode);
+  }
+};
+
+const resetCodexQuota = async (
+  file: AuthFileItem,
+  t: TFunction
+): Promise<{
+  planType: string | null;
+  subscriptionActiveUntil: string | number | null;
+  rateLimitResetCreditsAvailableCount: number | null;
+  windows: CodexQuotaWindow[];
+}> => {
+  await consumeCodexRateLimitResetCredit(file, t);
+  return fetchCodexQuota(file, t);
 };
 
 const GEMINI_CLI_G1_CREDIT_TYPE = 'GOOGLE_ONE_AI';
@@ -760,6 +878,9 @@ const renderCodexItems = (
   const { createElement: h, Fragment } = React;
   const windows = quota.windows ?? [];
   const planType = quota.planType ?? null;
+  const subscriptionActiveUntil = quota.subscriptionActiveUntil ?? null;
+  const rateLimitResetCreditsAvailableCount =
+    quota.rateLimitResetCreditsAvailableCount ?? null;
 
   const getPlanLabel = (pt?: string | null): string | null => {
     const normalized = normalizePlanType(pt);
@@ -776,18 +897,66 @@ const renderCodexItems = (
 
   const planLabel = getPlanLabel(planType);
   const isPremiumPlan = PREMIUM_CODEX_PLAN_TYPES.has(normalizePlanType(planType) ?? '');
+  const expiryLabel = subscriptionActiveUntil ? formatDateTimeValue(subscriptionActiveUntil) : '';
   const nodes: ReactNode[] = [];
 
-  if (planLabel) {
-    const valueClass = isPremiumPlan ? styleMap.premiumPlanValue : styleMap.codexPlanValue;
-    nodes.push(
-      h(
-        'div',
-        { key: 'plan', className: styleMap.codexPlan },
-        h('span', { className: styleMap.codexPlanLabel }, t('codex_quota.plan_label')),
-        h('span', { className: valueClass }, planLabel)
-      )
-    );
+  if (planLabel || expiryLabel || rateLimitResetCreditsAvailableCount !== null) {
+    const planValueClass = isPremiumPlan ? styleMap.premiumPlanValue : styleMap.codexPlanValue;
+    const planNodes: ReactNode[] = [];
+    const appendSeparator = (key: string) => {
+      if (planNodes.length === 0) return;
+      planNodes.push(
+        h('span', {
+          key,
+          className: styleMap.codexPlanSeparator,
+        })
+      );
+    };
+
+    if (planLabel) {
+      planNodes.push(
+        h(
+          'span',
+          { key: 'plan-label', className: styleMap.codexPlanLabel },
+          t('codex_quota.plan_label')
+        ),
+        h('span', { key: 'plan-value', className: planValueClass }, planLabel)
+      );
+    }
+
+    if (expiryLabel) {
+      appendSeparator('subscription-expiry-separator');
+      planNodes.push(
+        h(
+          'span',
+          { key: 'subscription-expiry-label', className: styleMap.codexPlanLabel },
+          t('codex_quota.expires_label')
+        ),
+        h(
+          'span',
+          { key: 'subscription-expiry-value', className: styleMap.codexPlanValue },
+          expiryLabel
+        )
+      );
+    }
+
+    if (rateLimitResetCreditsAvailableCount !== null) {
+      appendSeparator('reset-credits-separator');
+      planNodes.push(
+        h(
+          'span',
+          { key: 'reset-credits-label', className: styleMap.codexPlanLabel },
+          t('codex_quota.reset_credits_label')
+        ),
+        h(
+          'span',
+          { key: 'reset-credits-value', className: styleMap.codexPlanValue },
+          rateLimitResetCreditsAvailableCount.toString()
+        )
+      );
+    }
+
+    nodes.push(h('div', { key: 'plan', className: styleMap.codexPlan }, ...planNodes));
   }
 
   if (windows.length === 0) {
@@ -1199,13 +1368,20 @@ export const ANTIGRAVITY_CONFIG: QuotaConfig<AntigravityQuotaState, AntigravityQ
 
 export const CODEX_CONFIG: QuotaConfig<
   CodexQuotaState,
-  { planType: string | null; windows: CodexQuotaWindow[] }
+  {
+    planType: string | null;
+    subscriptionActiveUntil: string | number | null;
+    rateLimitResetCreditsAvailableCount: number | null;
+    windows: CodexQuotaWindow[];
+  }
 > = {
   type: 'codex',
   i18nPrefix: 'codex_quota',
   cardIdleMessageKey: 'quota_management.card_idle_hint',
   filterFn: (file) => isCodexFile(file) && !isDisabledAuthFile(file),
   fetchQuota: fetchCodexQuota,
+  resetQuota: resetCodexQuota,
+  canResetQuota: (quota) => (quota.rateLimitResetCreditsAvailableCount ?? 0) > 0,
   storeSelector: (state) => state.codexQuota,
   storeSetter: 'setCodexQuota',
   buildLoadingState: () => ({ status: 'loading', windows: [] }),
@@ -1213,6 +1389,8 @@ export const CODEX_CONFIG: QuotaConfig<
     status: 'success',
     windows: data.windows,
     planType: data.planType,
+    subscriptionActiveUntil: data.subscriptionActiveUntil,
+    rateLimitResetCreditsAvailableCount: data.rateLimitResetCreditsAvailableCount,
   }),
   buildErrorState: (message, status) => ({
     status: 'error',

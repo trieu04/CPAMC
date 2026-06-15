@@ -13,6 +13,7 @@ import {
   IconChevronUp,
   IconCode,
   IconDownload,
+  IconEye,
   IconEyeOff,
   IconMaximize2,
   IconMinimize2,
@@ -29,6 +30,7 @@ import { useAuthStore, useConfigStore, useNotificationStore } from '@/stores';
 import { logsApi, type LogsQuery } from '@/services/api/logs';
 import { versionApi } from '@/services/api/version';
 import { copyToClipboard } from '@/utils/clipboard';
+import { getErrorMessage } from '@/utils/helpers';
 import { downloadBlob } from '@/utils/download';
 import { MANAGEMENT_API_PREFIX } from '@/utils/constants';
 import { formatUnixTimestamp } from '@/utils/format';
@@ -81,16 +83,6 @@ const mergeIncrementalLines = (currentLines: string[], incomingLines: string[]):
   return [...currentLines, ...incomingLines.slice(overlap)];
 };
 
-const getErrorMessage = (err: unknown): string => {
-  if (err instanceof Error) return err.message;
-  if (typeof err === 'string') return err;
-  if (typeof err !== 'object' || err === null) return '';
-  if (!('message' in err)) return '';
-
-  const message = (err as { message?: unknown }).message;
-  return typeof message === 'string' ? message : '';
-};
-
 const getErrorPayloadText = (err: unknown): string => {
   if (typeof err !== 'object' || err === null) return '';
   const payloads = [
@@ -112,6 +104,19 @@ const getErrorPayloadText = (err: unknown): string => {
 const isLoggingToFileDisabledError = (err: unknown): boolean => {
   const text = `${getErrorMessage(err)} ${getErrorPayloadText(err)}`.toLowerCase();
   return text.includes('logging to file disabled');
+};
+
+const responseDataToText = async (data: unknown): Promise<string> => {
+  if (data instanceof Blob) return data.text();
+  if (data instanceof ArrayBuffer) return new TextDecoder().decode(data);
+  if (typeof data === 'string') return data;
+  if (data === undefined || data === null) return '';
+
+  try {
+    return JSON.stringify(data, null, 2);
+  } catch {
+    return String(data);
+  }
 };
 
 type TabType = 'logs' | 'errors';
@@ -149,12 +154,17 @@ export function LogsPage() {
   const [errorLogs, setErrorLogs] = useState<ErrorLogItem[]>([]);
   const [loadingErrors, setLoadingErrors] = useState(false);
   const [errorLogsError, setErrorLogsError] = useState('');
+  const [selectedErrorLog, setSelectedErrorLog] = useState<ErrorLogItem | null>(null);
+  const [selectedErrorLogText, setSelectedErrorLogText] = useState('');
+  const [selectedErrorLogError, setSelectedErrorLogError] = useState('');
+  const [selectedErrorLogLoading, setSelectedErrorLogLoading] = useState(false);
   const [requestLogId, setRequestLogId] = useState<string | null>(null);
   const [requestLogDownloading, setRequestLogDownloading] = useState(false);
   const [fullscreenLogs, setFullscreenLogs] = useState(false);
 
   const logScrollerRef = useRef<ReturnType<typeof useLogScroller> | null>(null);
   const requestLogHomeIpByIdRef = useRef<Record<string, string>>({});
+  const errorLogViewRequestRef = useRef(0);
   const longPressRef = useRef<{
     timer: number | null;
     startX: number;
@@ -371,6 +381,50 @@ export function LogsPage() {
         'error'
       );
     }
+  };
+
+  const openErrorLog = async (item: ErrorLogItem) => {
+    const requestId = errorLogViewRequestRef.current + 1;
+    errorLogViewRequestRef.current = requestId;
+    setSelectedErrorLog(item);
+    setSelectedErrorLogText('');
+    setSelectedErrorLogError('');
+    setSelectedErrorLogLoading(true);
+
+    try {
+      const response = await logsApi.downloadErrorLog(item.name);
+      const text = await responseDataToText(response.data);
+      if (errorLogViewRequestRef.current !== requestId) return;
+      setSelectedErrorLogText(text);
+    } catch (err: unknown) {
+      if (errorLogViewRequestRef.current !== requestId) return;
+      const message = getErrorMessage(err);
+      setSelectedErrorLogError(
+        message ? `${t('logs.error_log_open_failed')}: ${message}` : t('logs.error_log_open_failed')
+      );
+    } finally {
+      if (errorLogViewRequestRef.current === requestId) {
+        setSelectedErrorLogLoading(false);
+      }
+    }
+  };
+
+  const closeErrorLogViewer = () => {
+    errorLogViewRequestRef.current += 1;
+    setSelectedErrorLog(null);
+    setSelectedErrorLogText('');
+    setSelectedErrorLogError('');
+    setSelectedErrorLogLoading(false);
+  };
+
+  const copySelectedErrorLog = async () => {
+    const ok = await copyToClipboard(selectedErrorLogText);
+    showNotification(
+      ok
+        ? t('logs.error_log_copy_success')
+        : t('logs.copy_failed', { defaultValue: 'Copy failed' }),
+      ok ? 'success' : 'error'
+    );
   };
 
   useEffect(() => {
@@ -1098,6 +1152,19 @@ export function LogsPage() {
                           <Button
                             variant="secondary"
                             size="sm"
+                            onClick={() => {
+                              void openErrorLog(item);
+                            }}
+                            disabled={disableControls}
+                          >
+                            <span className={styles.buttonContent}>
+                              <IconEye size={16} />
+                              {t('logs.error_logs_open')}
+                            </span>
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
                             onClick={() => downloadErrorLog(item.name)}
                             disabled={disableControls}
                           >
@@ -1113,6 +1180,64 @@ export function LogsPage() {
           </Card>
         )}
       </div>
+
+      <Modal
+        open={Boolean(selectedErrorLog)}
+        onClose={closeErrorLogViewer}
+        title={selectedErrorLog?.name ?? t('logs.error_log_view_title')}
+        width={960}
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeErrorLogViewer}>
+              {t('common.close')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                void copySelectedErrorLog();
+              }}
+              disabled={!selectedErrorLogText || selectedErrorLogLoading}
+            >
+              {t('common.copy')}
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedErrorLog) {
+                  void downloadErrorLog(selectedErrorLog.name);
+                }
+              }}
+              disabled={!selectedErrorLog || selectedErrorLogLoading}
+            >
+              {t('logs.error_logs_download')}
+            </Button>
+          </>
+        }
+      >
+        <div className={styles.errorLogViewer}>
+          {selectedErrorLog && (
+            <div className={styles.errorLogViewerMeta}>
+              <span>
+                {t('logs.error_logs_size')}:{' '}
+                {selectedErrorLog.size ? `${(selectedErrorLog.size / 1024).toFixed(1)} KB` : '-'}
+              </span>
+              <span>
+                {t('logs.error_logs_modified')}:{' '}
+                {selectedErrorLog.modified ? formatUnixTimestamp(selectedErrorLog.modified) : '-'}
+              </span>
+            </div>
+          )}
+          {selectedErrorLogError && <div className="error-box">{selectedErrorLogError}</div>}
+          {selectedErrorLogLoading ? (
+            <div className="hint">{t('common.loading')}</div>
+          ) : selectedErrorLogText ? (
+            <pre className={styles.errorLogContent} spellCheck={false}>
+              {selectedErrorLogText}
+            </pre>
+          ) : !selectedErrorLogError ? (
+            <div className="hint">{t('logs.error_log_empty_content')}</div>
+          ) : null}
+        </div>
+      </Modal>
 
       <Modal
         open={Boolean(requestLogId)}
