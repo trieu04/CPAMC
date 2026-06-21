@@ -81,6 +81,7 @@ export type VisualConfigValues = {
   authDir: string;
   apiKeysText: string;
   pluginsEnabled: boolean;
+  pluginStoreSources: string[];
   debug: boolean;
   commercialMode: boolean;
   loggingToFile: boolean;
@@ -105,7 +106,6 @@ export type VisualConfigValues = {
   routingSessionAffinity: boolean;
   routingSessionAffinityTTL: string;
   wsAuth: boolean;
-  enableGeminiCliEndpoint: boolean;
   antigravitySignatureCacheEnabled: boolean;
   antigravitySignatureBypassStrict: boolean;
   claudeHeaderUserAgent: string;
@@ -145,6 +145,7 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   authDir: '',
   apiKeysText: '',
   pluginsEnabled: false,
+  pluginStoreSources: [],
   debug: false,
   commercialMode: false,
   loggingToFile: false,
@@ -169,7 +170,6 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   routingSessionAffinity: false,
   routingSessionAffinityTTL: '',
   wsAuth: false,
-  enableGeminiCliEndpoint: false,
   antigravitySignatureCacheEnabled: true,
   antigravitySignatureBypassStrict: false,
   claudeHeaderUserAgent: '',

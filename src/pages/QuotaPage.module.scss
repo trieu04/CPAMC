@@ -113,7 +113,6 @@
 .antigravityGrid,
 .claudeGrid,
 .codexGrid,
-.geminiCliGrid,
 .kimiGrid,
 .xaiGrid {
   display: grid;
@@ -128,7 +127,6 @@
 .antigravityControls,
 .claudeControls,
 .codexControls,
-.geminiCliControls,
 .kimiControls,
 .xaiControls {
   display: flex;
@@ -141,7 +139,6 @@
 .antigravityControl,
 .claudeControl,
 .codexControl,
-.geminiCliControl,
 .kimiControl,
 .xaiControl {
   display: flex;
@@ -261,10 +258,6 @@
   background-image: linear-gradient(180deg, rgba(234, 231, 255, 0.18), rgba(234, 231, 255, 0));
 }
 
-.geminiCliCard {
-  background-image: linear-gradient(180deg, rgba(224, 232, 255, 0.2), rgba(224, 232, 255, 0));
-}
-
 .kimiCard {
   background-image: linear-gradient(180deg, rgba(220, 232, 255, 0.2), rgba(220, 232, 255, 0));
 }
@@ -286,6 +279,37 @@
   display: flex;
   flex-direction: column;
   gap: $spacing-xs;
+}
+
+.antigravityQuotaGroup {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  padding-bottom: $spacing-xs;
+}
+
+.antigravityQuotaGroup + .antigravityQuotaGroup {
+  padding-top: $spacing-sm;
+  border-top: 1px solid color-mix(in srgb, var(--border-color) 65%, transparent);
+}
+
+.antigravityQuotaGroupHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.antigravityQuotaGroupTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.antigravityQuotaGroupDescription {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-tertiary);
 }
 
 .quotaRowHeader {
@@ -434,20 +458,31 @@
 .codexPlan {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 6px 12px;
   font-size: 12px;
   color: var(--text-secondary);
   flex-wrap: wrap;
 }
 
+.codexPlanItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
 .codexPlanLabel {
   color: var(--text-tertiary);
+  flex: 0 0 auto;
 }
 
 .codexPlanValue {
   font-weight: 600;
   color: var(--text-primary);
   text-transform: capitalize;
+  min-width: 0;
 }
 
 .codexPlanSeparator {
@@ -464,6 +499,8 @@
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 999px;
+  white-space: nowrap;
+  flex: 0 0 auto;
   overflow: visible;
   isolation: isolate;
   background:
